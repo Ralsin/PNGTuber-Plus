@@ -31,11 +31,13 @@ var blinkTick = 0
 #Audio Listener
 
 var currentMicrophone = null
+var currentBusIndex = -1
 
 var speaking = false
 var spectrum
 var volume = 0
 var volumeSensitivity = 0.0
+var experimentalMicLoudness = false
 
 var volumeLimit = 0.0
 var senseLimit = 0.0
@@ -60,6 +62,11 @@ func _ready():
 		Global.micResetTime = Saving.settings["secondsToMicReset"]
 	else:
 		Saving.settings["secondsToMicReset"] = 180
+	
+	if Saving.settings.has("experimentalMicLoudness"):
+		Global.experimentalMicLoudness = Saving.settings["experimentalMicLoudness"]
+	else:
+		Saving.settings["experimentalMicLoudness"] = false
 		
 	createMicrophone()
 
@@ -71,6 +78,7 @@ func createMicrophone():
 	playa.bus = "MIC"
 	add_child(playa)
 	currentMicrophone = playa
+	currentBusIndex = AudioServer.get_bus_index(playa.bus)
 	await get_tree().create_timer(micResetTime).timeout
 	if currentMicrophone != playa:
 		return
@@ -87,7 +95,7 @@ func deleteAllMics():
 func _process(delta):
 	animationTick += 1
 	
-	volume = spectrum.get_magnitude_for_frequency_range(20, 20000).length()
+	volume = (AudioServer.get_bus_peak_volume_left_db(currentBusIndex, 0) + AudioServer.get_bus_peak_volume_right_db(currentBusIndex, 0)) / 1600.0 + 0.25 if experimentalMicLoudness else spectrum.get_magnitude_for_frequency_range(20, 20000).length()
 	if currentMicrophone != null:
 		volumeSensitivity = lerp(volumeSensitivity,0.0,delta*2)
 	
